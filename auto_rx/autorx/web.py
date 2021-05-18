@@ -254,7 +254,7 @@ def flask_get_kml_feed():
 @app.route("/export_logs.zip")  
 def flask_get_logs():
     """ Return a compressed copy of auto_rx log directory """
-    base_path = pathlib.Path(autorx.logging_path)
+    base_path = pathlib.Path('./log/')
     data = io.BytesIO()
     with zipfile.ZipFile(data, mode='w') as z:
         for f_name in base_path.iterdir():
