@@ -14,6 +14,9 @@ import requests
 import time
 import traceback
 import sys
+import zipfile
+import io
+import pathlib
 import autorx
 import autorx.config
 import autorx.scan
@@ -132,6 +135,7 @@ def flask_get_task_list():
     return json.dumps(_sdr_list)
 
 
+
 @app.route("/rs.kml")
 def flask_get_kml():
     """ Return KML with autorefresh """
@@ -244,6 +248,23 @@ def flask_get_kml_feed():
         re.sub("<Document.*>", "<Document>", kml.kml()),
         200,
         {"content-type": "application/vnd.google-earth.kml+xml"},
+    )
+
+
+@app.route("/export_logs")  
+def export_logs():
+    """ Return a compressed copy of auto_rx log directory """
+    base_path = pathlib.Path(autorx.logging_path)
+    data = io.BytesIO()
+    with zipfile.ZipFile(data, mode='w') as z:
+        for f_name in base_path.iterdir():
+            z.write(f_name)
+    data.seek(0)
+    return fl.send_file(
+        data,
+        mimetype='application/zip',
+        as_attachment=True,
+        attachment_filename='logfiles.zip'
     )
 
 
