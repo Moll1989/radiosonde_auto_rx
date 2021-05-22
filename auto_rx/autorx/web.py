@@ -8,6 +8,7 @@
 import copy
 import datetime
 import io
+import os
 import json
 import logging
 import pathlib
@@ -20,6 +21,7 @@ import sys
 import autorx
 import autorx.config
 import autorx.scan
+from pathlib import PurePath
 from autorx.geometry import GenericTrack
 from autorx.utils import check_autorx_versions
 from autorx.log_files import list_log_files, read_log_by_serial
@@ -252,20 +254,35 @@ def flask_get_kml_feed():
     )
 
 
-@app.route("/export_logs")
+@app.route("/export_logs", methods=["POST"])
 def flask_get_logs():
-    """ Return a compressed copy of auto_rx log directory """
+    """ Return a zip archive of auto_rx log files. Log files are searched 
+        based on sonde serial numbers provided as a JSON object in POST request  """
+
+    # TODO: Catch error if POST body contains no JSON
+
+    if "serial" not in request.get_json():
+        abort(403)
+
     base_path = pathlib.Path('./log/')
-    data = io.BytesIO()
-    with zipfile.ZipFile(data, mode='w') as z:
+
+    req = request.get_json()
+    print(req)
+    serial_list = req.get("serial")
+    zip_data = io.BytesIO()
+
+    # Iterate through files in log folder and check them against sonde serials.  Add matching files to the zip archive.
+    with zipfile.ZipFile(zip_data, mode='w') as z:
         for f_name in base_path.iterdir():
-            z.write(f_name)
-    data.seek(0)
+            for serial in serial_list:
+                if pathlib.PurePath(f_name).match(f"*_{serial}_*_sonde.log"):
+                    z.write(f_name)
+    zip_data.seek(0)
 
+    # Prepare response
     ts = time.strftime("%Y%m%d-%H%M%S", time.gmtime())
-
     response = make_response(flask.send_file(
-        data,
+        zip_data,
         mimetype='application/zip',
         as_attachment=True,
         attachment_filename=f'autorx_logfiles_{ts}.zip'

@@ -556,10 +556,63 @@
                 $('#skewt-header').html("<h2>Skew-T</h2>");
                 try {
                     skewt.clear();
-                } catch (err) {}
+ 
+
+               } catch (err) {}
                 enableMenu();
             });
             
+
+            $("#export-log").click(function(){
+                                
+                    selectedrows = table.getSelectedData();
+
+                    if (selectedrows.length > 0) {
+                        // Iterate through rows and push serials to a new array
+                        var serials = [];
+                        var i = 0;
+                        do {
+                            serials.push(selectedrows[i]['serial']);
+                            i++;
+                        }
+                        while (i <= (selectedrows.length-1));
+
+                        // Place serials array inside JSON object, then convert to blob.
+                        var POST_body= {};
+                        POST_body['serial'] = serials;
+                        var POST_body_blob = new Blob([JSON.stringify(POST_body)], {type : 'application/json'});
+
+                        // Send XHR POST request.
+                        var log_request = new XMLHttpRequest();
+                        log_request.open("POST", "/export_logs", true);
+                        log_request.setRequestHeader('Content-Type', 'application/json');
+                        log_request.responseType = 'blob';
+                        log_request.send(POST_body_blob);
+                    
+                        // Retrieve response.
+                        log_request.onload = function(e) {
+                            if (this.status == 200) {
+                                var blob = new Blob([this.response], {type: 'application/zip'});
+                                let a = document.createElement("a");
+                                a.style = "display: none";
+                                document.body.appendChild(a);
+                                let url = window.URL.createObjectURL(blob);
+                                a.href = url;
+                                a.download = 'Auto_RX_LogFiles.zip';
+                                a.click();
+                                window.URL.revokeObjectURL(url);
+                            }else{
+                                // Unexpected response
+                            }
+                        }; 
+                    }else{
+                        // No rows were selected in table
+                    }
+            });
+
+
+
+
             // List of available map layers.
             var Mapnik = L.tileLayer.provider("OpenStreetMap.Mapnik", {edgeBufferTiles: 2});
             var DarkMatter = L.tileLayer.provider("CartoDB.DarkMatter", {edgeBufferTiles: 2});
@@ -827,6 +880,7 @@
                 <button id="hidesonde-map" style="margin:3px auto">Reset Map</button>
                 <button id="showsonde-skew" style="margin:3px auto">Plot Skew-T</button>
                 <button id="hidesonde-skew" style="margin:3px auto">Remove Skew-T</button>
+                <button id="export-log" style="margin:3px auto">Export Logfile</button>
             </div>
             <br>
             </div>
