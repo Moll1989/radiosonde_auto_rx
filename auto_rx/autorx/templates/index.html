@@ -12,8 +12,8 @@
     <link href="{{ url_for('static', filename='css/c3.min.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/leaflet.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/leaflet.fullscreen.css') }}" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" >
-    <link id='tabulatorsheet' href='{{ url_for('static', filename='css/tabulator_midnight.min.css') }}' rel='stylesheet'>
+    <link href="{{ url_for('static', filename='css/autorx.css') }}" rel="stylesheet" >
+    <link id='tabulatorsheet' href="{{ url_for('static', filename='css/tabulator_midnight.min.css') }}" rel='stylesheet'>
     
     <!-- Import local libraries -->
     <script src="{{ url_for('static', filename='js/jquery-3.6.0.min.js') }}"></script>
@@ -25,7 +25,7 @@
     <script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/scan_chart.js') }}"></script>
     <script src="{{ url_for('static', filename='js/c3.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/d3.min.js') }}" charset="utf-8"></script>
+    <script src="{{ url_for('static', filename='js/d3.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/autorxapi.js') }}"></script>
     <script src="{{ url_for('static', filename='js/tabulator.min.js') }}"></script>
@@ -60,6 +60,9 @@
                     }
                     $('#station_callsign').text(_station_call);
 
+                    // Update webpage title
+                    document.title = _station_call + " Auto-RX Status";
+
                     if(autorx_config["web_control"] == false){
                         $("#password-header").html("<h2>Web Control Disabled</h2>");
                         disable_web_controls();
@@ -74,10 +77,12 @@
                   async: true,
                   success: function(data) {
                     // Update the current version field.
-                    if (getCookie('version') == "false") {}
-                    else {
+                    if (getCookie('version') == 'false') {} 
+                    else if (getCookie('version') == 'true') {
                         $('#currentversion').text(data.current);
-                    }
+                    } else if ((window.innerWidth/window.innerHeight) > 1) {
+                        $('#currentversion').text(data.current);
+                    } 
                     
                     // Update the latest version area.
                     if(data.latest == 'Latest'){
@@ -213,14 +218,14 @@
             
             // Home Icon.
             homeIcon = L.icon({
-            iconUrl: '{{ url_for('static', filename='img/antenna-green.png') }}',
+            iconUrl: "{{ url_for('static', filename='img/antenna-green.png') }}",
             iconSize: [26, 34],
             iconAnchor: [13, 34]
             });  
             
             // Home Icon for dark mode.
             homeIconDark = L.icon({
-            iconUrl: '{{ url_for('static', filename='img/antenna-green-dark.png') }}',
+            iconUrl: "{{ url_for('static', filename='img/antenna-green-dark.png') }}",
             iconSize: [26, 34],
             iconAnchor: [13, 34]
             });  
@@ -293,8 +298,12 @@
             // Check if user has version shown selection.
             if (getCookie('version') == 'false') {
                 document.getElementById("showversionbutton").checked = false;
-            } else {
+            } else if (getCookie('version') == 'true') {
                 document.getElementById("showversionbutton").checked = true;
+            } else if ((window.innerWidth/window.innerHeight) > 1) {
+                document.getElementById("showversionbutton").checked = true;
+            } else {
+                document.getElementById("showversionbutton").checked = false;
             }
             
             // Check if user has preffered scan chart visiblity.
@@ -338,6 +347,7 @@
                     $('.modal-content').css('background-color', 'white')
                     $('.close').css('color', 'black')
                     $('#myBtn').css('color', 'black')
+                    $('#historyBtn').css('color', 'black')
                     $('#scanid').css('color', 'black')
                     $('.c3-axis-y').css('fill', 'black')
                     $('.c3-axis-x').css('fill', 'black')
@@ -363,6 +373,7 @@
                     $('.modal-content').css('background-color', 'black')
                     $('.close').css('color', 'white')
                     $('#myBtn').css('color', 'white')
+                    $('#historyBtn').css('color', 'white')
                     $('#scanid').css('color', 'white')
                     $('.c3-axis-y').css('fill', 'white')
                     $('.c3-axis-x').css('fill', 'white')
@@ -469,7 +480,25 @@
                     {title:"Age", field:"age", headerSort:true},
                     {title:"Type", field:"type", headerSort:true},
                     {title:'Freq (MHz)', field:"freq", headerSort:true},
-                    {title:"ID", field:"id", formatter:'html', width:80, headerSort:true},
+                    {title:"ID", field:"id", width:125, headerSort:true, formatter:function(cell, formatterParams, onRendered){
+                        _cell_data = cell.getData();
+                        _id = _cell_data.id.replace(/^(DFM|M10|M20|IMET|IMET54|MRZ)-/,"");
+                        _sondehub_id = _cell_data.id.replace(/^(DFM|M10|M20|IMET|IMET54|MRZ)-/,"");
+                        
+                        // Add Sondehub Link
+                        _id += "&nbsp;<a href='http://sondehub.org/" + _sondehub_id + "' title='View on Sondehub' target='_blank'>" + "<img src='{{ url_for('static', filename='img/sondehub.png')}}'/>" + "</a>";
+
+                        // Add Radiosondy Link
+                        if(_cell_data.aprsid != null){
+                            _aprs_id = _cell_data.aprsid.trim();
+                            _id += "<a href='https://radiosondy.info/sonde_archive.php?sondenumber=" + _aprs_id + "' title='View on Radiosondy.info' target='_blank'>" + "<img src='{{ url_for('static', filename='img/radiosondy.png')}}'/>" + "</a>";
+
+                        } else {
+                            _aprs_id = null;
+                        }
+
+                        return _id;
+                    }},
                     {title:"Time", field:"datetime", width:180, headerSort:true, formatter:function(cell, formatterParams, onRendered){
                         if (getCookie('UTC') == 'false') {
                             var temp_time = new Date(cell.getValue());
@@ -516,13 +545,13 @@
                     },
                     {title:"Asc", field:"vel_v", headerSort:false, formatter:function(cell, formatterParams, onRendered){
                         if (getCookie('imperial') == 'true') {
-                            return (Math.round((cell.getValue()*3.28084) * 10) / 10);           
+                            return (Math.round((cell.getValue()*196.85) * 10) / 10);           
                         } else {
                             return cell.getValue();
                         }
                     }, titleFormatter:function(cell, formatterParams, onRendered){
                         if (getCookie('imperial') == 'true') {
-                            return cell.getValue() + " (ft/s)";              
+                            return cell.getValue() + " (ft/min)";              
                         } else {
                             return cell.getValue() + " (m/s)";
                         }
@@ -658,21 +687,18 @@
                         sonde_id_data.alt = sonde_id_data.alt.toFixed(1);
                         sonde_id_data.vel_v = sonde_id_data.vel_v.toFixed(1);
                         sonde_id_data.vel_h = (sonde_id_data.vel_h*3.6).toFixed(1);
+                        
+
                         // Add a link to HabHub if we have habitat enabled.
-                        if (autorx_config.sondehub_enabled == true) {
-                            // Add a link to HabHub card if sonde is old.
-                            if (sonde_id_data.age != "old") {
-                                sonde_id_data.id = "<a href='http://sondehub.org/" + sonde_id.replace(/^(DFM|M10|M20|IMET|IMET54|MRZ)-/,"") + "' target='_blank'>" + sonde_id  + "</a>";
-                            } else {
-                                sonde_id_data.id = "<a href='http://sondehub.org/card/" + sonde_id.replace(/^(DFM|M10|M20|IMET|IMET54|MRZ)-/,"") + "' target='_blank'>" + sonde_id  + "</a>";
-                            }
-                        // These links are only going to work for Vaisala radiosondes since the APRS callsign is never passed through to the web interface,
-                        // and the APRS callsigns for everything other than RS41s and RS92s is different to the 'full' serials
-                        } else if (autorx_config.aprs_enabled == true && autorx_config.aprs_server == "radiosondy.info") {
-                            sonde_id_data.id = "<a href='https://radiosondy.info/sonde_archive.php?sondenumber=" + sonde_id + "' target='_blank'>" + sonde_id + "</a>";
-                        } else if (autorx_config.aprs_enabled == true) {
-                            sonde_id_data.id = "<a href='https://aprs.fi/#!call=" + sonde_id + "&timerange=3600&tail=3600' target='_blank'>" + sonde_id + "</a>";
-                        }
+                        // if (autorx_config.sondehub_enabled == true) {
+                        //     sonde_id_data.id = "<a href='http://sondehub.org/" + sonde_id.replace(/^(DFM|M10|M20|IMET|IMET54|MRZ)-/,"") + "' target='_blank'>" + sonde_id  + "</a>";
+                        // // These links are only going to work for Vaisala radiosondes since the APRS callsign is never passed through to the web interface,
+                        // // and the APRS callsigns for everything other than RS41s and RS92s is different to the 'full' serials
+                        // } else if (autorx_config.aprs_enabled == true && autorx_config.aprs_server == "radiosondy.info") {
+                        //     sonde_id_data.id = "<a href='https://radiosondy.info/sonde_archive.php?sondenumber=" + sonde_id + "' target='_blank'>" + sonde_id + "</a>";
+                        // } else if (autorx_config.aprs_enabled == true) {
+                        //     sonde_id_data.id = "<a href='https://aprs.fi/#!call=" + sonde_id + "&timerange=3600&tail=3600' target='_blank'>" + sonde_id + "</a>";
+                        // }
                         
                         sonde_id_data.realid = sonde_id;
 
@@ -1113,7 +1139,7 @@
                 } else if (show == 'true') {
                     document.getElementById("checkbox" + i).checked = true;
                 } else {
-                    if ($( window ).width() > 1600) {
+                    if ($( window ).width() > 1200) {
                         document.getElementById("checkbox" + i).checked = true;
                     } else { // If no cookies are set on mobile device show limited number for better experience.
                         if ([1,4,9,16].includes(i)) {
@@ -1550,7 +1576,14 @@
                   &nbsp;
                   <div style="display:inline;vertical-align:middle;">
                     <button id="open-controls" onclick="openModal()">OPEN</button>
-                  </div>                 
+                  </div>    
+                  <br>
+                  <br>
+                  <h2 style="display:inline;vertical-align:middle;">Historical View</h2>
+                  &nbsp;
+                  <div style="display:inline;vertical-align:middle;">
+                    <button onclick="window.location.href='/historical.html'">OPEN</button>
+                  </div>                            
                   <br>
                   <br>
                   <h2 style="display:inline;vertical-align:middle;">Export Logs</h2>
@@ -1564,7 +1597,7 @@
             </div>       
         </div>    
         <div id="downdiv">
-            <i class="fa fa-angle-down" style="font-size:60px;opacity:1;"></i>
+            <i class="icon-angle-down" style="font-size:60px;opacity:1;"></i>
         </div>
     </div>
 
@@ -1586,7 +1619,8 @@
         </div>
         <br>
         <div id="mapid"></div>
-        <i id="myBtn" onclick="changeSettings()" class="fa fa-gear" style="font-size:4vh;font-size:calc(var(--vh, 1vh) * 4);"></i>
+        <i id="myBtn" onclick="changeSettings()" class="icon-cog" style="font-size:4vh;font-size:calc(var(--vh, 1vh) * 4);"></i>
+        <a href="historical.html" id="historyBtn"><i class="icon-history" style="font-size:4vh;font-size:calc(var(--vh, 1vh) * 4);"></i></a>
     </div>
     
     <!-- Wrapper for advanced control modal -->

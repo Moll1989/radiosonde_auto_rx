@@ -158,6 +158,7 @@ def start_scanner():
             min_distance=config["min_distance"],
             quantization=config["quantization"],
             scan_dwell_time=config["scan_dwell_time"],
+            scan_delay=config["scan_delay"],
             detect_dwell_time=config["detect_dwell_time"],
             max_peaks=config["max_peaks"],
             rs_path=RS_PATH,
@@ -244,9 +245,9 @@ def start_decoder(freq, sonde_type):
             timeout=config["rx_timeout"],
             telem_filter=telemetry_filter,
             rs92_ephemeris=rs92_ephemeris,
-            imet_location=config["station_code"],
             rs41_drift_tweak=config["rs41_drift_tweak"],
             experimental_decoder=config["experimental_decoders"][_exp_sonde_type],
+            save_raw_hex=config["save_raw_hex"]
         )
         autorx.sdr_list[_device_idx]["task"] = autorx.task_list[freq]["task"]
 
@@ -565,7 +566,9 @@ def telemetry_filter(telemetry):
     # This will need to be re-evaluated if we're still using this code in 2021!
     # UPDATE: Had some confirmation that Vaisala will continue to use the alphanumeric numbering up until
     # ~2025-2030, so have expanded the regex to match (and also support some older RS92s)
-    vaisala_callsign_valid = re.match(r"[E-Z][0-5][\d][1-7]\d{4}", _serial)
+    # Modified 2021-06 to be more flexible and match older sondes, and reprogrammed sondes.
+    # Still needs a letter at the start, but the numbers don't need to match the format exactly.
+    vaisala_callsign_valid = re.match(r"[C-Z][\d][\d][\d]\d{4}", _serial)
 
     # Just make sure we're not getting the 'xxxxxxxx' unknown serial from the DFM decoder.
     if "DFM" in telemetry["type"]:
@@ -720,6 +723,9 @@ def main():
     else:
         # Using print because logging may not be established yet
         print("Invalid logging path, using default. Does the folder exist?")
+
+    # Update Global logging path, used by other modules.
+    autorx.logging_path = logging_path
 
     # Configure logging
     _log_suffix = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M%S_system.log")
